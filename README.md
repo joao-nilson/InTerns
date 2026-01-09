@@ -1,3 +1,4 @@
+```
 InTerns-MERN/
 ├── backend/                 # Node.js + Express + MongoDB
 │   ├── src/
@@ -16,3 +17,4 @@ InTerns-MERN/
 │   └── package.json
 ├── docker-compose.yml      # Para MongoDB
 └── README.md
+```

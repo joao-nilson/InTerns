@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Building2, Briefcase, Filter, UserCircle, Lock, Mail, User, ArrowRight, CheckCircle, ArrowLeft, Clock, DollarSign, Plus, X, Save } from 'lucide-react';
+import { 
+  Search, MapPin, Building2, Briefcase, Filter, UserCircle, 
+  Lock, Mail, User, ArrowRight, CheckCircle, ArrowLeft, 
+  Clock, DollarSign, Plus, X, Save 
+} from 'lucide-react';
+import { api } from './api'; 
 
 // --- MOCK DATA ---
 const VAGAS_DATA = [
@@ -67,57 +72,6 @@ const VAGAS_DATA = [
     ]
   }
 ];
-
-// --- SIMPLE API CLIENT ---
-const api = {
-  getJobs: async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/jobs');
-      if (!response.ok) throw new Error('API error');
-      return await response.json();
-    } catch (error) {
-      console.log('Using mock data, backend unavailable');
-      return VAGAS_DATA; // Fallback to mock data
-    }
-  },
-  
-  login: async (email, password) => {
-    try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      if (!response.ok) throw new Error('Login failed');
-      return await response.json();
-    } catch (error) {
-      // Fallback to mock login
-      const mockUser = email.includes('empresa') 
-        ? { user: { id: 2, name: 'Empresa MuitoFoda Solutions', email, type: 'company' } }
-        : { user: { id: 1, name: 'Aluno Teste', email, type: 'candidate' } };
-      return mockUser;
-    }
-  },
-  
-  createJob: async (jobData) => {
-    try {
-      const response = await fetch('http://localhost:5000/api/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(jobData)
-      });
-      if (!response.ok) throw new Error('Create job failed');
-      return await response.json();
-    } catch (error) {
-      // Fallback to local job creation
-      return {
-        ...jobData,
-        id: Date.now(),
-        postedAt: "Agora mesmo"
-      };
-    }
-  }
-};
 
 // --- COMPONENTES REUTILIZAVEIS ---
 
@@ -539,6 +493,7 @@ const JobDetailsPage = ({ vaga, onBack }) => {
 const UserTypeToggle = ({ userType, setUserType }) => (
   <div className="flex p-1 bg-gray-100 rounded-lg mb-6">
     <button
+      type="button"
       onClick={() => setUserType('candidate')}
       className={`flex-1 py-2 text-sm font-bold rounded-md transition-all duration-200 flex items-center justify-center gap-2 ${
         userType === 'candidate'
@@ -550,6 +505,7 @@ const UserTypeToggle = ({ userType, setUserType }) => (
       Sou Candidato
     </button>
     <button
+      type="button"
       onClick={() => setUserType('company')}
       className={`flex-1 py-2 text-sm font-bold rounded-md transition-all duration-200 flex items-center justify-center gap-2 ${
         userType === 'company'
@@ -674,15 +630,175 @@ const LoginPage = ({ onNavigate, onLogin }) => {
   );
 };
 
-const SignUpPage = ({ onNavigate }) => {
+const SignUpPage = ({ onNavigate, onSignupSuccess }) => {
   const [userType, setUserType] = useState('candidate');
+  const [step, setStep] = useState(1); // 1 = basic info, 2 = additional info
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  // Form state for all fields
+  const [formData, setFormData] = useState({
+    // Common fields
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+    location: '',
+    bio: '',
+    
+    // Company specific
+    companySize: '',
+    industry: '',
+    website: '',
+    taxId: ''
+  });
+
+  // Handle input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setError(''); // Clear error on typing
+  };
+
+  // Validate basic info (step 1)
+  const validateStep1 = () => {
+    if (!formData.name.trim()) {
+      setError('Nome é obrigatório');
+      return false;
+    }
+    
+    if (!formData.email.trim()) {
+      setError('Email é obrigatório');
+      return false;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Email inválido');
+      return false;
+    }
+    
+    if (!formData.password) {
+      setError('Senha é obrigatória');
+      return false;
+    }
+    
+    if (userType === 'candidate' && formData.password.length < 6) {
+      setError('Senha deve ter pelo menos 6 caracteres');
+      return false;
+    }
+    
+    if (userType === 'company' && formData.password.length < 8) {
+      setError('Senha deve ter pelo menos 8 caracteres');
+      return false;
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      setError('As senhas não coincidem');
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Handle next step
+  const handleNextStep = () => {
+    if (validateStep1()) {
+      setStep(2);
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      let result;
+      
+      if (userType === 'candidate') {
+        // Prepare candidate data
+        const candidateData = {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+          location: formData.location,
+          bio: formData.bio
+        };
+        
+        result = await api.signupCandidate(candidateData);
+      } else {
+        // Prepare company data
+        const companyData = {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+          location: formData.location,
+          bio: formData.bio,
+          companySize: formData.companySize,
+          industry: formData.industry,
+          website: formData.website,
+          taxId: formData.taxId
+        };
+        
+        result = await api.signupCompany(companyData);
+      }
+
+      setSuccess(true);
+      
+      // Auto-login after successful signup
+      setTimeout(() => {
+        if (onSignupSuccess) {
+          onSignupSuccess(result.user);
+        }
+      }, 2000);
+      
+    } catch (err) {
+      setError(err.message || 'Erro ao criar conta. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // If signup successful
+  if (success) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-lg border border-gray-100 text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="text-green-600" size={32} />
+          </div>
+          <h2 className="text-2xl font-extrabold text-gray-800 mb-2">
+            Conta criada com sucesso!
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {userType === 'candidate' 
+              ? 'Bem-vindo ao InTerns! Seu perfil de candidato foi criado.'
+              : 'Bem-vindo ao InTerns! Sua conta de empresa foi criada.'
+            }
+          </p>
+          <div className="animate-pulse text-sm text-gray-500">
+            Redirecionando para a página inicial...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-extrabold text-[#223e8c]">
-            Crie sua conta
+          <h2 className="text-2xl font-extrabold text-[#223e8c]">
+            Criar Conta
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Junte-se ao InTerns e {userType === 'candidate' ? 'encontre seu estágio ideal' : 'contrate os melhores talentos'}.
@@ -691,83 +807,244 @@ const SignUpPage = ({ onNavigate }) => {
 
         <UserTypeToggle userType={userType} setUserType={setUserType} />
 
-        <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {userType === 'candidate' ? "Nome Completo" : "Nome da Empresa"}
-            </label>
-            <div className="relative">
-              <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                {userType === 'candidate' ? <User size={18} /> : <Building2 size={18} />}
-              </div>
-              <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
-                placeholder={userType === 'candidate' ? "Ex: João Silva" : "Ex: Tech Solutions Ltda"}
-              />
+        {/* Step indicator */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 1 ? 'bg-[#223e8c] text-white' : 'bg-gray-200 text-gray-600'}`}>
+              1
             </div>
+            <div className="ml-2 text-sm font-medium">Informações básicas</div>
           </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-            <div className="relative">
-              <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                <Mail size={18} />
-              </div>
-              <input
-                type="email"
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
-                placeholder="seu.email@exemplo.com"
-              />
+          <div className="h-px w-8 bg-gray-300 mx-2"></div>
+          <div className="flex items-center">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 2 ? 'bg-[#223e8c] text-white' : 'bg-gray-200 text-gray-600'}`}>
+              2
             </div>
+            <div className="ml-2 text-sm font-medium">Informações adicionais</div>
           </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-            <div className="relative">
-              <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                <Lock size={18} />
-              </div>
-              <input
-                type="password"
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
+        </div>
 
-           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Senha</label>
-            <div className="relative">
-              <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                <CheckCircle size={18} />
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {step === 1 ? (
+            <>
+              {/* Basic Information */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {userType === 'candidate' ? "Nome Completo *" : "Nome da Empresa *"}
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                  placeholder={userType === 'candidate' ? "Ex: João Silva" : "Ex: Tech Solutions Ltda"}
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                />
               </div>
-              <input
-                type="password"
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <input
+                  type="email"
+                  name="email"
+                  className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                  placeholder="seu.email@exemplo.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
+                  <input
+                    type="password"
+                    name="password"
+                    className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {userType === 'candidate' ? 'Mínimo 6 caracteres' : 'Mínimo 8 caracteres'}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Senha *</label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                    placeholder="••••••••"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
 
-          <div className="pt-2">
-            <button className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-[#223e8c] hover:bg-[#1a2f6b] transition-colors shadow-md hover:shadow-lg">
-              Criar Conta
-            </button>
-          </div>
-
-          <div className="text-center mt-4">
-            <p className="text-sm text-gray-600">
-              Já possui conta?{' '}
-              <button 
-                onClick={() => onNavigate('login')}
-                className="font-bold text-[#223e8c] hover:text-[#1a2f6b] transition-colors"
+              <button
+                type="button"
+                onClick={handleNextStep}
+                className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-[#223e8c] hover:bg-[#1a2f6b] transition-colors shadow-md hover:shadow-lg"
               >
-                Faça login
+                Próximo
               </button>
-            </p>
-          </div>
+            </>
+          ) : (
+            <>
+              {/* Additional Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                    placeholder="(11) 99999-9999"
+                    value={formData.phone}
+                    onChange={handleChange}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Localização</label>
+                  <input
+                    type="text"
+                    name="location"
+                    className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                    placeholder="São Paulo, SP"
+                    value={formData.location}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {userType === 'candidate' ? "Sobre você (bio)" : "Sobre a empresa"}
+                </label>
+                <textarea
+                  name="bio"
+                  rows="3"
+                  className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                  placeholder={userType === 'candidate' ? "Conte um pouco sobre sua experiência e objetivos..." : "Descreva a empresa, missão e valores..."}
+                  value={formData.bio}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Company-specific fields */}
+              {userType === 'company' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho da Empresa</label>
+                      <select
+                        name="companySize"
+                        className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white"
+                        value={formData.companySize}
+                        onChange={handleChange}
+                      >
+                        <option value="">Selecione</option>
+                        <option value="1-10">1-10 funcionários</option>
+                        <option value="11-50">11-50 funcionários</option>
+                        <option value="51-200">51-200 funcionários</option>
+                        <option value="201-500">201-500 funcionários</option>
+                        <option value="501+">501+ funcionários</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Setor</label>
+                      <input
+                        type="text"
+                        name="industry"
+                        className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                        placeholder="Tecnologia, Saúde, Educação..."
+                        value={formData.industry}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                      <input
+                        type="url"
+                        name="website"
+                        className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                        placeholder="https://empresa.com"
+                        value={formData.website}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
+                      <input
+                        type="text"
+                        name="taxId"
+                        className="block w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                        placeholder="00.000.000/0001-00"
+                        value={formData.taxId}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-4 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="flex-1 py-3 px-4 border border-gray-300 text-sm font-bold rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Voltar
+                </button>
+                
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-[#223e8c] hover:bg-[#1a2f6b] transition-colors shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white mr-2"></div>
+                      Criando conta...
+                    </>
+                  ) : (
+                    'Criar Conta'
+                  )}
+                </button>
+              </div>
+            </>
+          )}
         </form>
+
+        <div className="text-center mt-6 pt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-600">
+            Já possui conta?{' '}
+            <button 
+              onClick={() => onNavigate('login')}
+              className="font-bold text-[#223e8c] hover:text-[#1a2f6b] transition-colors"
+            >
+              Faça login
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -878,24 +1155,28 @@ export default function InTernsApp() {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedJob, setSelectedJob] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [vacancies, setVacancies] = useState(VAGAS_DATA); // Start with mock data
+  const [vacancies, setVacancies] = useState([]);
   
-  // Fetch jobs from backend on component mount
+  // Fetch jobs on component mount
   useEffect(() => {
-    const loadJobs = async () => {
+    const fetchJobs = async () => {
       try {
-        const jobsFromBackend = await api.getJobs();
-        setVacancies(jobsFromBackend);
+        const data = await api.getJobs();
+        setVacancies(data);
       } catch (error) {
-        // Keep using mock data if backend fails
         console.log('Using mock data for now');
+        setVacancies(VAGAS_DATA);
       }
     };
-    
-    loadJobs();
+    fetchJobs();
   }, []);
 
   const handleUserLogin = (user) => {
+    setCurrentUser(user);
+    setCurrentPage('home');
+  };
+
+  const handleSignupSuccess = (user) => {
     setCurrentUser(user);
     setCurrentPage('home');
   };
@@ -911,21 +1192,12 @@ export default function InTernsApp() {
         ...jobData,
         company: currentUser?.name || "Minha Empresa"
       });
-      
       setVacancies(prev => [newJob, ...prev]);
       setCurrentPage('home');
       alert("Vaga publicada com sucesso!");
     } catch (error) {
-      // Fallback to local
-      const localJob = {
-        ...jobData,
-        id: Date.now(),
-        company: currentUser?.name || "Minha Empresa",
-        postedAt: "Agora mesmo"
-      };
-      setVacancies(prev => [localJob, ...prev]);
-      setCurrentPage('home');
-      alert("Vaga publicada (modo offline)");
+      console.error('Error creating job:', error);
+      alert("Erro ao publicar vaga. Tente novamente.");
     }
   };
 
@@ -940,7 +1212,7 @@ export default function InTernsApp() {
       case 'login':
         return <LoginPage onNavigate={setCurrentPage} onLogin={handleUserLogin} />;
       case 'signup':
-        return <SignUpPage onNavigate={setCurrentPage} />;
+        return <SignUpPage onNavigate={setCurrentPage} onSignupSuccess={handleSignupSuccess} />;
       case 'job-details':
         return <JobDetailsPage vaga={selectedJob} onBack={() => setCurrentPage('home')} />;
       case 'create-job':

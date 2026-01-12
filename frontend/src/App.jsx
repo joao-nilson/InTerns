@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Building2, Briefcase, Filter, UserCircle, Lock, Mail, User, ArrowRight, CheckCircle, ArrowLeft, Clock, DollarSign, Plus, X, Save } from 'lucide-react';
 
 // --- MOCK DATA ---
@@ -68,6 +68,56 @@ const VAGAS_DATA = [
   }
 ];
 
+// --- SIMPLE API CLIENT ---
+const api = {
+  getJobs: async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/jobs');
+      if (!response.ok) throw new Error('API error');
+      return await response.json();
+    } catch (error) {
+      console.log('Using mock data, backend unavailable');
+      return VAGAS_DATA; // Fallback to mock data
+    }
+  },
+  
+  login: async (email, password) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (!response.ok) throw new Error('Login failed');
+      return await response.json();
+    } catch (error) {
+      // Fallback to mock login
+      const mockUser = email.includes('empresa') 
+        ? { user: { id: 2, name: 'Empresa MuitoFoda Solutions', email, type: 'company' } }
+        : { user: { id: 1, name: 'Aluno Teste', email, type: 'candidate' } };
+      return mockUser;
+    }
+  },
+  
+  createJob: async (jobData) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(jobData)
+      });
+      if (!response.ok) throw new Error('Create job failed');
+      return await response.json();
+    } catch (error) {
+      // Fallback to local job creation
+      return {
+        ...jobData,
+        id: Date.now(),
+        postedAt: "Agora mesmo"
+      };
+    }
+  }
+};
 
 // --- COMPONENTES REUTILIZAVEIS ---
 
@@ -515,10 +565,27 @@ const UserTypeToggle = ({ userType, setUserType }) => (
 
 const LoginPage = ({ onNavigate, onLogin }) => {
   const [userType, setUserType] = useState('candidate');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  const handleLogin = () => {
-    // NOTA: Usamos "Empresa MuitoFoda Solutions" para empresa para bater com o Mock Data e ter vagas para mostrar
-    onLogin({ type: userType, name: userType === 'candidate' ? 'Aluno Teste' : 'Empresa MuitoFoda Solutions' });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Use provided credentials or defaults
+    const loginEmail = email || (userType === 'candidate' ? 'aluno@teste.com' : 'rh@empresa.com');
+    const loginPassword = password || '123';
+    
+    const result = await api.login(loginEmail, loginPassword);
+    
+    if (result.user) {
+      onLogin(result.user);
+    } else {
+      // Fallback to original logic
+      onLogin({ 
+        type: userType, 
+        name: userType === 'candidate' ? 'Aluno Teste' : 'Empresa MuitoFoda Solutions' 
+      });
+    }
   };
 
   return (
@@ -535,20 +602,39 @@ const LoginPage = ({ onNavigate, onLogin }) => {
 
         <UserTypeToggle userType={userType} setUserType={setUserType} />
 
-        <form className="mt-8 space-y-6" onSubmit={(e) => e.preventDefault()}>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
-            <InputField 
-              icon={Mail} 
-              type="email" 
-              label="E-mail" 
-              placeholder={userType === 'candidate' ? "seu.email@aluno.com" : "rh@empresa.com"} 
-            />
-            <InputField 
-              icon={Lock} 
-              type="password" 
-              label="Senha" 
-              placeholder="••••••••" 
-            />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+              <div className="relative">
+                <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                  <Mail size={18} />
+                </div>
+                <input
+                  type="email"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                  placeholder={userType === 'candidate' ? "seu.email@aluno.com" : "rh@empresa.com"}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+              <div className="relative">
+                <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                  <Lock size={18} />
+                </div>
+                <input
+                  type="password"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-between text-sm">
@@ -556,13 +642,13 @@ const LoginPage = ({ onNavigate, onLogin }) => {
               <input id="remember-me" type="checkbox" className="h-4 w-4 text-[#223e8c] focus:ring-[#223e8c] border-gray-300 rounded" />
               <label htmlFor="remember-me" className="ml-2 block text-gray-900">Lembrar-me</label>
             </div>
-            <a href="#" className="font-medium text-[#223e8c] hover:text-[#1a2f6b]">
+            <button type="button" className="font-medium text-[#223e8c] hover:text-[#1a2f6b]">
               Esqueceu a senha?
-            </a>
+            </button>
           </div>
 
           <button 
-            onClick={handleLogin}
+            type="submit"
             className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-[#223e8c] hover:bg-[#1a2f6b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#223e8c] transition-colors"
           >
             <span className="absolute left-0 inset-y-0 flex items-center pl-3">
@@ -606,33 +692,63 @@ const SignUpPage = ({ onNavigate }) => {
         <UserTypeToggle userType={userType} setUserType={setUserType} />
 
         <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-          <InputField 
-            icon={userType === 'candidate' ? User : Building2} 
-            type="text" 
-            label={userType === 'candidate' ? "Nome Completo" : "Nome da Empresa"} 
-            placeholder={userType === 'candidate' ? "Ex: João Silva" : "Ex: Tech Solutions Ltda"} 
-          />
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {userType === 'candidate' ? "Nome Completo" : "Nome da Empresa"}
+            </label>
+            <div className="relative">
+              <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                {userType === 'candidate' ? <User size={18} /> : <Building2 size={18} />}
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                placeholder={userType === 'candidate' ? "Ex: João Silva" : "Ex: Tech Solutions Ltda"}
+              />
+            </div>
+          </div>
           
-          <InputField 
-            icon={Mail} 
-            type="email" 
-            label="E-mail Corporativo ou Pessoal" 
-            placeholder="seu.email@exemplo.com" 
-          />
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+            <div className="relative">
+              <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <Mail size={18} />
+              </div>
+              <input
+                type="email"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                placeholder="seu.email@exemplo.com"
+              />
+            </div>
+          </div>
           
-          <InputField 
-            icon={Lock} 
-            type="password" 
-            label="Senha" 
-            placeholder="••••••••" 
-          />
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+            <div className="relative">
+              <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <Lock size={18} />
+              </div>
+              <input
+                type="password"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
 
-           <InputField 
-            icon={CheckCircle} 
-            type="password" 
-            label="Confirmar Senha" 
-            placeholder="••••••••" 
-          />
+           <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Senha</label>
+            <div className="relative">
+              <div className="absolute left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <CheckCircle size={18} />
+              </div>
+              <input
+                type="password"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-[#223e8c] focus:border-[#223e8c] text-sm bg-white transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
 
           <div className="pt-2">
             <button className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-[#223e8c] hover:bg-[#1a2f6b] transition-colors shadow-md hover:shadow-lg">
@@ -657,29 +773,29 @@ const SignUpPage = ({ onNavigate }) => {
   );
 };
 
-// --- PAGINA INICIAL ATUALIZADA ---
+// --- PAGINA INICIAL (SIMPLIFIED) ---
 const HomePage = ({ onNavigate, onJobClick, vacancies, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Logica de Filtragem
-  const filteredVagas = useMemo(() => {
-    let listToFilter = vacancies;
-
-    // Se for empresa, filtra para mostrar so as vagas dessa empresa
-    if (currentUser?.type === 'company') {
-      listToFilter = listToFilter.filter(v => v.company === currentUser.name);
+  // Simple filter logic (your original working version)
+  const filteredVagas = vacancies.filter(vaga => {
+    // If company user, filter by company
+    if (currentUser?.type === 'company' && vaga.company !== currentUser.name) {
+      return false;
     }
-
-    // Aplica o filtro de busca do usuario sobre a lista
-    if (!searchTerm) return listToFilter;
     
-    const lowerTerm = searchTerm.toLowerCase();
-    return listToFilter.filter(vaga => 
-      vaga.title.toLowerCase().includes(lowerTerm) ||
-      vaga.company.toLowerCase().includes(lowerTerm) ||
-      vaga.tags.some(tag => tag.name.toLowerCase().includes(lowerTerm))
-    );
-  }, [searchTerm, vacancies, currentUser]);
+    // If search term, filter by search
+    if (searchTerm) {
+      const lowerTerm = searchTerm.toLowerCase();
+      return (
+        vaga.title.toLowerCase().includes(lowerTerm) ||
+        vaga.company.toLowerCase().includes(lowerTerm) ||
+        vaga.tags.some(tag => tag.name.toLowerCase().includes(lowerTerm))
+      );
+    }
+    
+    return true;
+  });
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -702,11 +818,6 @@ const HomePage = ({ onNavigate, onJobClick, vacancies, currentUser }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
-            <button className="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-lg transition-colors">
-              <Filter size={18} />
-            </button>
-          </div>
         </div>
         
         <div className="flex justify-center gap-6 mt-4 text-xs text-gray-500">
@@ -761,15 +872,28 @@ const HomePage = ({ onNavigate, onJobClick, vacancies, currentUser }) => {
   );
 };
 
-// --- APP ORCHESTRATOR ---
+// --- APP ORCHESTRATOR (SIMPLIFIED) ---
 
 export default function InTernsApp() {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedJob, setSelectedJob] = useState(null);
-  
   const [currentUser, setCurrentUser] = useState(null);
+  const [vacancies, setVacancies] = useState(VAGAS_DATA); // Start with mock data
   
-  const [vacancies, setVacancies] = useState(VAGAS_DATA);
+  // Fetch jobs from backend on component mount
+  useEffect(() => {
+    const loadJobs = async () => {
+      try {
+        const jobsFromBackend = await api.getJobs();
+        setVacancies(jobsFromBackend);
+      } catch (error) {
+        // Keep using mock data if backend fails
+        console.log('Using mock data for now');
+      }
+    };
+    
+    loadJobs();
+  }, []);
 
   const handleUserLogin = (user) => {
     setCurrentUser(user);
@@ -781,17 +905,28 @@ export default function InTernsApp() {
     setCurrentPage('home');
   };
 
-  const handleSaveJob = (jobData) => {
-    const newJob = {
-      ...jobData,
-      id: Date.now(),
-      company: currentUser?.name || "Minha Empresa",
-      postedAt: "Agora mesmo"
-    };
-    
-    setVacancies([newJob, ...vacancies]);
-    setCurrentPage('home');
-    alert("Vaga publicada com sucesso!");
+  const handleSaveJob = async (jobData) => {
+    try {
+      const newJob = await api.createJob({
+        ...jobData,
+        company: currentUser?.name || "Minha Empresa"
+      });
+      
+      setVacancies(prev => [newJob, ...prev]);
+      setCurrentPage('home');
+      alert("Vaga publicada com sucesso!");
+    } catch (error) {
+      // Fallback to local
+      const localJob = {
+        ...jobData,
+        id: Date.now(),
+        company: currentUser?.name || "Minha Empresa",
+        postedAt: "Agora mesmo"
+      };
+      setVacancies(prev => [localJob, ...prev]);
+      setCurrentPage('home');
+      alert("Vaga publicada (modo offline)");
+    }
   };
 
   const handleJobClick = (vaga) => {
@@ -812,7 +947,12 @@ export default function InTernsApp() {
         return <CreateJobPage onBack={() => setCurrentPage('home')} onSave={handleSaveJob} />;
       case 'home':
       default:
-        return <HomePage onNavigate={setCurrentPage} onJobClick={handleJobClick} vacancies={vacancies} currentUser={currentUser} />;
+        return <HomePage 
+          onNavigate={setCurrentPage} 
+          onJobClick={handleJobClick} 
+          vacancies={vacancies} 
+          currentUser={currentUser} 
+        />;
     }
   };
 

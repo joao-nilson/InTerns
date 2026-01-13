@@ -1,4 +1,4 @@
-const VAGAS_DATA = [
+export const VAGAS_DATA = [
   {
     id: 1,
     title: "Estágio em Desenvolvimento Front-end",

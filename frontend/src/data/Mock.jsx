@@ -49,7 +49,7 @@ const VAGAS_DATA = [
   {
     id: 4,
     title: "Estágio Full Stack",
-    company: "Startup Uncórnio que NÂO vai falir",
+    company: "Startup Uncórnio que NÃO vai falir",
     location: "Rio de Janeiro, RJ",
     regime: "Híbrido",
     description: "Atuação generalista em produto em fase de crescimento acelerado. Você terá contato com todo o ciclo de desenvolvimento, do banco de dados ao frontend.",

@@ -58,13 +58,21 @@ Os arquivos serão gerados na pasta dist/.
 A estrutura foi pensada para facilitar a manutenção e escalabilidade, seguindo os princípios de Engenharia de Software do documento de requisitos.
 
 ```text
-interns-frontend/
+frontend/
 ├── public/              # Arquivos estáticos (favicon, robots.txt)
 ├── src/
-│   ├── App.jsx          # Controller Principal (Roteamento e Estado Global)
+│   ├── components/      # Componentes reutilizáveis
+│   │   ├── ui/          # Componentes atômicos sem regras de negócio (botões, inputs, etc.)
+│   │   ├── layout/      # Componentes de layout (header, footer, etc.)
+│   │   └── business/    # Componentes específicos de negócio
+│   │
+│   ├── pages/           # Telas completas (views)
+│   ├── assets/          # Imagens, fontes e outros recursos
+│   ├── data/            # Dados estáticos e mocks (temporários)
 │   ├── index.css        # Ponto de entrada do Tailwind v4 (@import "tailwindcss")
 │   ├── main.jsx         # Entry point do React (DOM Injection)
-│   └── ...              # Componentes (JobCard, Header, etc.)
+│   └── app.jsx          # Componente raiz do aplicativo
+│
 ├── .gitignore           # Arquivos ignorados pelo Git
 ├── index.html           # HTML raiz
 ├── package.json         # Manifesto de dependências e scripts

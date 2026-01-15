@@ -9,24 +9,22 @@ import { Header } from './components/layout/Header';
 // Páginas
 import { HomePage } from './pages/Homepage';
 import { JobDetailsPage } from './pages/JobDetails';
-// import { LoginPage } from './pages/LoginPage'; // TODO
+import { LoginPage } from './pages/LoginPage'; // TODO
 // import { CreateJobPage } from './pages/CreateJobPage'; // TODO
 // import { SignUpPage } from './pages/SignUpPage'; // TODO
 
 // Componentes Placeholder enquanto nao criamos as outras paginas
-const LoginPage = ({ onLogin, onNavigate }) => <div className="p-10 text-center"><h1 className="text-xl font-bold">Página de Login WIP (TODO: mover o código antigo para src/pages/Login.jsx)</h1><button onClick={() => onLogin({type:'candidate', name:'Dev'})} className="mt-4 bg-blue-600 text-white p-2 rounded">Simular Login</button></div>;
+//const LoginPage = ({ onLogin, onNavigate }) => <div className="p-10 text-center"><h1 className="text-xl font-bold">Página de Login WIP (TODO: mover o código antigo para src/pages/Login.jsx)</h1><button onClick={() => onLogin({type:'candidate', name:'Dev'})} className="mt-4 bg-blue-600 text-white p-2 rounded">Simular Login</button></div>;
 const CreateJobPage = ({ onBack }) => <div className="p-10 text-center"><h1 className="text-xl font-bold">Página Criar Vaga WIP (TODO: mover o código antigo para src/pages/CreateJob.jsx)</h1><button onClick={onBack} className="mt-4 text-blue-600 underline">Voltar</button></div>;
 const SignUpPage = ({ onNavigate }) => <div className="p-10 text-center"><h1 className="text-xl font-bold">Página Cadastro WIP (TODO: mover o código antigo para src/pages/SignUp.jsx)</h1><button onClick={() => onNavigate('login')} className="mt-4 text-blue-600 underline">Ir para Login</button></div>;
 
 
 export default function InTernsApp() {
-  // --- Gestão de Estado Global ---
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedJob, setSelectedJob] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [vacancies, setVacancies] = useState(VAGAS_DATA);
 
-  // --- Handlers (Controladores) ---
   const handleUserLogin = (user) => {
     setCurrentUser(user);
     setCurrentPage('home');
@@ -54,7 +52,6 @@ export default function InTernsApp() {
     window.scrollTo(0, 0);
   };
 
-  // --- Roteamento Simples ---
   const renderContent = () => {
     switch(currentPage) {
       case 'login':

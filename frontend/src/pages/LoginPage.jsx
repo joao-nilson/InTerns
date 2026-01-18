@@ -1,18 +1,34 @@
 import React, { useState } from 'react';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, AlertCircle } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 import { UserTypeToggle } from '../components/ui/Toggle';
 import { api } from '../api';
+import { validateEmail } from '../utils';
 
 export const LoginPage = ({ onNavigate, onLogin }) => {
     const [userType, setUserType] = useState('candidate');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    
+    const [emailError, setEmailError] = useState('');
+    const [generalError, setGeneralError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        setError('');
+        setEmailError('');
+        setGeneralError('');
+
+        if (!validateEmail(email)) {
+            setEmailError('Por favor, insira um e-mail válido.');
+            return;
+        }
+        if (!password) {
+            setGeneralError('Por favor, insira sua senha.');
+            return;
+        }
+
+        setLoading(true);
         
         try {
             const result = await api.login(email, password);
@@ -20,13 +36,15 @@ export const LoginPage = ({ onNavigate, onLogin }) => {
                 onLogin(result.user);
             }
         } catch (err) {
-            console.warn("API falhou ou backend offline, usando fallback local para teste.");
-            // Fallback para manter o app funcional sem backend, ai vai no mock mesmo
-            onLogin({ 
-                type: userType, 
-                name: userType === 'candidate' ? 'Aluno (Modo Offline)' : 'Empresa (Modo Offline)',
-                email: email 
-            });
+            console.error(err);
+            if (err.message && (err.message.includes('401') || err.message.includes('400') || err.message.includes('Auth failed'))) {
+                setGeneralError('E-mail ou senha incorretos.');
+            } else {
+                setGeneralError('Erro ao conectar ao servidor. Tente mais tarde.');
+            }
+            // onLogin({ type: userType, name: 'Modo Offline', email: email });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -39,16 +57,38 @@ export const LoginPage = ({ onNavigate, onLogin }) => {
 
                 <UserTypeToggle userType={userType} setUserType={setUserType} />
                 
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                {generalError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2 text-sm">
+                        <AlertCircle size={16} />
+                        {generalError}
+                    </div>
+                )}
 
                 <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-                    <div className="rounded-md shadow-sm -space-y-px">
-                        <Input icon={Mail} type="email" label="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
-                        <Input icon={Lock} type="password" label="Senha" value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <div className="space-y-4">
+                        <Input 
+                            icon={Mail} 
+                            type="email" 
+                            label="E-mail" 
+                            value={email} 
+                            onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
+                            error={emailError}
+                        />
+                        <Input 
+                            icon={Lock} 
+                            type="password" 
+                            label="Senha" 
+                            value={password} 
+                            onChange={(e) => { setPassword(e.target.value); setGeneralError(''); }}
+                        />
                     </div>
 
-                    <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-[#223e8c] hover:bg-[#1a2f6b] transition-colors">
-                        Entrar
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-[#223e8c] hover:bg-[#1a2f6b] transition-colors disabled:opacity-70"
+                    >
+                        {loading ? 'Entrando...' : 'Entrar'}
                     </button>
                     
                     <div className="text-center mt-4">

@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, User, Mail, Lock, Phone, MapPin, Globe, FileText } from 'lucide-react'; // Adicionei ícones para melhor UX
+import { Input } from '../components/ui/Input';
 import { UserTypeToggle } from '../components/ui/Toggle';
 import { api } from '../api';
+import { validateEmail, validatePassword, validatePhone, validateCNPJ} from '../utils';
 
 export const SignUpPage = ({ onNavigate, onSignupSuccess }) => {
     const [userType, setUserType] = useState('candidate');
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    
+    const [errors, setErrors] = useState({});
+    const [generalError, setGeneralError] = useState('');
     const [success, setSuccess] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -19,43 +23,91 @@ export const SignUpPage = ({ onNavigate, onSignupSuccess }) => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-        setError('');
+        
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: '' }));
+        }
     };
 
     const validateStep1 = () => {
-        if (!formData.name.trim()) return setError('Nome é obrigatório');
-        if (!formData.email.trim()) return setError('Email é obrigatório');
-        if (!formData.password) return setError('Senha é obrigatória');
-        if (formData.password !== formData.confirmPassword) return setError('As senhas não coincidem');
-        return true;
+        const newErrors = {};
+
+        if (!formData.name.trim()) newErrors.name = "Nome é obrigatório.";
+        
+        if (!formData.email.trim()) {
+            newErrors.email = "E-mail é obrigatório.";
+        } else if (!validateEmail(formData.email)) {
+            newErrors.email = "Formato de e-mail inválido.";
+        }
+
+        const passCheck = validatePassword(formData.password);
+        if (!passCheck.isValid) {
+            newErrors.password = passCheck.message;
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            newErrors.confirmPassword = "As senhas não coincidem.";
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const validateStep2 = () => {
+        const newErrors = {};
+
+        if (formData.phone && !validatePhone(formData.phone)) {
+            newErrors.phone = "Formato inválido. Use (DD) 99999-9999.";
+        }
+
+        if (userType === 'company') {
+            if (!formData.taxId) {
+                newErrors.taxId = "CNPJ é obrigatório para empresas.";
+            } else if (!validateCNPJ(formData.taxId)) {
+                newErrors.taxId = "CNPJ inválido. Use o formato 00.000.000/0001-00";
+            }
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleNextStep = () => {
         if (validateStep1()) {
             setStep(2);
-            setError('');
+            setGeneralError('');
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (!validateStep2()) return;
+
         setLoading(true);
-        setError('');
+        setGeneralError('');
+
+        const cleanData = (data) => {
+            return Object.fromEntries(
+                Object.entries(data).filter(([_, v]) => v !== '' && v !== null)
+            );
+        };
 
         try {
             let result;
+            const commonData = {
+                name: formData.name, email: formData.email, password: formData.password,
+                phone: formData.phone, location: formData.location, bio: formData.bio
+            };
+
             if (userType === 'candidate') {
-                result = await api.signupCandidate({
-                    name: formData.name, email: formData.email, password: formData.password,
-                    phone: formData.phone, location: formData.location, bio: formData.bio
-                });
+                result = await api.signupCandidate(cleanData(commonData));
             } else {
-                result = await api.signupCompany({
-                    name: formData.name, email: formData.email, password: formData.password,
-                    phone: formData.phone, location: formData.location, bio: formData.bio,
+                result = await api.signupCompany(cleanData({
+                    ...commonData,
                     companySize: formData.companySize, industry: formData.industry,
                     website: formData.website, taxId: formData.taxId
-                });
+                }));
             }
 
             setSuccess(true);
@@ -64,7 +116,12 @@ export const SignUpPage = ({ onNavigate, onSignupSuccess }) => {
             }, 2000);
             
         } catch (err) {
-            setError(err.message || 'Erro ao criar conta.');
+            const msg = err.message || '';
+            if (msg.includes('email')) {
+                setErrors({ email: 'Este e-mail já está em uso.' });
+            } else {
+                setGeneralError('Ocorreu um erro ao criar a conta. Tente novamente.');
+            }
         } finally {
             setLoading(false);
         }
@@ -78,7 +135,7 @@ export const SignUpPage = ({ onNavigate, onSignupSuccess }) => {
                         <CheckCircle className="text-green-600" size={32} />
                     </div>
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Conta criada!</h2>
-                    <p className="text-gray-600">Redirecionando para a página inicial...</p>
+                    <p className="text-gray-600">Redirecionando...</p>
                 </div>
             </div>
         );
@@ -96,50 +153,89 @@ export const SignUpPage = ({ onNavigate, onSignupSuccess }) => {
 
                 <UserTypeToggle userType={userType} setUserType={setUserType} />
 
-                {/* Indicador de Passos */}
                 <div className="flex items-center justify-between mb-6 px-4">
                     <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 1 ? 'bg-[#223e8c] text-white' : 'bg-green-100 text-green-700'}`}>1</div>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${step === 1 ? 'bg-[#223e8c] text-white' : 'bg-green-100 text-green-700'}`}>1</div>
+                        <span className="text-xs font-medium text-gray-500">Acesso</span>
                     </div>
                     <div className="h-px w-full bg-gray-200 mx-4"></div>
                     <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 2 ? 'bg-[#223e8c] text-white' : 'bg-gray-100 text-gray-400'}`}>2</div>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${step === 2 ? 'bg-[#223e8c] text-white' : 'bg-gray-100 text-gray-400'}`}>2</div>
+                        <span className="text-xs font-medium text-gray-500">Perfil</span>
                     </div>
                 </div>
 
-                {error && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg">{error}</div>}
+                {generalError && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100">{generalError}</div>}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {step === 1 ? (
                         <>
-                            <input name="name" placeholder="Nome Completo" value={formData.name} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
-                            <input name="email" type="email" placeholder="Email" value={formData.email} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
-                            <div className="grid grid-cols-2 gap-4">
-                                <input name="password" type="password" placeholder="Senha" value={formData.password} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
-                                <input name="confirmPassword" type="password" placeholder="Confirmar" value={formData.confirmPassword} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
+                            {userType == 'company' 
+                                ? <Input 
+                                        icon={User} name="name" placeholder="Nome Fantasia" label="Nome"
+                                        value={formData.name} onChange={handleChange} error={errors.name} 
+                                    /> 
+                                : <Input 
+                                    icon={User} name="name" placeholder="Nome Completo" label="Nome"
+                                    value={formData.name} onChange={handleChange} error={errors.name} 
+                                />
+                            }
+                            
+                            <Input 
+                                icon={Mail} type="email" name="email" placeholder="Email" label="E-mail"
+                                value={formData.email} onChange={handleChange} error={errors.email} 
+                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input 
+                                    icon={Lock} type="password" name="password" placeholder="Senha" label="Senha"
+                                    value={formData.password} onChange={handleChange} error={errors.password} 
+                                />
+                                <Input 
+                                    icon={CheckCircle} type="password" name="confirmPassword" placeholder="Confirmar" label="Repetir Senha"
+                                    value={formData.confirmPassword} onChange={handleChange} error={errors.confirmPassword} 
+                                />
                             </div>
-                            <button type="button" onClick={handleNextStep} className="w-full py-3 bg-[#223e8c] text-white font-bold rounded-lg hover:bg-[#1a2f6b]">Próximo</button>
+                            <button type="button" onClick={handleNextStep} className="w-full py-3 bg-[#223e8c] text-white font-bold rounded-lg hover:bg-[#1a2f6b] transition-colors shadow-md">
+                                Próximo: Perfil
+                            </button>
                         </>
                     ) : (
                         <>
-                            <div className="grid grid-cols-2 gap-4">
-                                <input name="phone" placeholder="Telefone" value={formData.phone} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-                                <input name="location" placeholder="Cidade/UF" value={formData.location} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input 
+                                    icon={Phone} name="phone" placeholder="(99) 99999-9999" label="Telefone"
+                                    value={formData.phone} onChange={handleChange} error={errors.phone} 
+                                />
+                                <Input 
+                                    icon={MapPin} name="location" placeholder="Cidade/UF" label="Localização"
+                                    value={formData.location} onChange={handleChange} 
+                                />
                             </div>
                             
-                            <textarea name="bio" rows="3" placeholder="Sobre..." value={formData.bio} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+                            {userType == 'company' 
+                                    ?  <Input 
+                                            textarea rows={3} icon={FileText} name="bio" placeholder="Conte um pouco sobre sua empresa..." label="Sobre"
+                                            value={formData.bio} onChange={handleChange} 
+                                        />
+                                    :  <Input 
+                                            textarea rows={3} icon={FileText} name="bio" placeholder="Conte um pouco sobre você..." label="Sobre"
+                                            value={formData.bio} onChange={handleChange} 
+                                        />
+                                }
 
                             {userType === 'company' && (
-                                <div className="grid grid-cols-2 gap-4">
-                                    <input name="website" placeholder="Site" value={formData.website} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-                                    <input name="taxId" placeholder="CNPJ" value={formData.taxId} onChange={handleChange} className="w-full p-3 border rounded-lg" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Input icon={Globe} name="website" placeholder="https://" label="Site" value={formData.website} onChange={handleChange} />
+                                    <Input icon={FileText} name="taxId" placeholder="00.000.000/0001-00" label="CNPJ" value={formData.taxId} onChange={handleChange} error={errors.taxId} />
                                 </div>
                             )}
 
-                            <div className="flex gap-4">
-                                <button type="button" onClick={() => setStep(1)} className="flex-1 py-3 border border-gray-300 font-bold rounded-lg">Voltar</button>
-                                <button type="submit" disabled={loading} className="flex-1 py-3 bg-[#223e8c] text-white font-bold rounded-lg hover:bg-[#1a2f6b]">
-                                    {loading ? 'Criando...' : 'Finalizar'}
+                            <div className="flex gap-4 pt-2">
+                                <button type="button" onClick={() => setStep(1)} className="flex-1 py-3 border border-gray-300 font-bold rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+                                    Voltar
+                                </button>
+                                <button type="submit" disabled={loading} className="flex-1 py-3 bg-[#223e8c] text-white font-bold rounded-lg hover:bg-[#1a2f6b] transition-colors shadow-md disabled:opacity-70">
+                                    {loading ? 'Criando...' : 'Finalizar Cadastro'}
                                 </button>
                             </div>
                         </>

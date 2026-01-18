@@ -1,12 +1,7 @@
-import React, { useState } from 'react';
-
-// Dados mock
+import React, { useState, useEffect } from 'react';
+import { api } from './api';
 import { VAGAS_DATA } from './data/Mock';
-
-// Componentes de Layout
 import { Header } from './components/layout/Header';
-
-// Páginas
 import { HomePage } from './pages/HomePage';
 import { JobDetailsPage } from './pages/JobDetailsPage';
 import { LoginPage } from './pages/LoginPage';
@@ -17,8 +12,20 @@ export default function InTernsApp() {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedJob, setSelectedJob] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  
-  const [vacancies, setVacancies] = useState(VAGAS_DATA);
+  const [vacancies, setVacancies] = useState([]);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const data = await api.getJobs();
+        setVacancies(data);
+      } catch (error) {
+        console.log('Backend offline ou erro na API. Usando dados Mock.');
+        setVacancies(VAGAS_DATA);
+      }
+    };
+    fetchJobs();
+  }, []);
 
   const handleUserLogin = (user) => {
     setCurrentUser(user);
@@ -35,17 +42,27 @@ export default function InTernsApp() {
     setCurrentPage('home');
   };
 
-  const handleSaveJob = (jobData) => {
-    const newJob = {
-      ...jobData,
-      id: Date.now(),
-      company: currentUser?.name || "Minha Empresa",
-      postedAt: "Agora mesmo"
-    };
-    
-    setVacancies([newJob, ...vacancies]);
-    setCurrentPage('home');
-    alert("Vaga publicada com sucesso!");
+  const handleSaveJob = async (jobData) => {
+    try {
+      const newJobPayload = {
+        ...jobData,
+        company: currentUser?.name || "Minha Empresa"
+      };
+
+      // Tenta salvar no backend
+      try {
+        const savedJob = await api.createJob(newJobPayload);
+        setVacancies(prev => [savedJob, ...prev]);
+      } catch (apiError) {
+        // Fallback se backend falhar
+        const mockJob = { ...newJobPayload, id: Date.now(), postedAt: "Agora mesmo" };
+        setVacancies(prev => [mockJob, ...prev]);
+      }
+      
+      setCurrentPage('home');
+    } catch (error) {
+      console.error('Erro crítico ao salvar vaga', error);
+    }
   };
 
   const handleJobClick = (vaga) => {
@@ -66,7 +83,14 @@ export default function InTernsApp() {
         return <CreateJobPage onBack={() => setCurrentPage('home')} onSave={handleSaveJob} />;
       case 'home':
       default:
-        return <HomePage onNavigate={setCurrentPage} onJobClick={handleJobClick} vacancies={vacancies} currentUser={currentUser} />;
+        return (
+          <HomePage 
+            onNavigate={setCurrentPage} 
+            onJobClick={handleJobClick} 
+            vacancies={vacancies} 
+            currentUser={currentUser} 
+          />
+        );
     }
   };
 

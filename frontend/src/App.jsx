@@ -17,9 +17,15 @@ export default function InTernsApp() {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedJob, setSelectedJob] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  
   const [vacancies, setVacancies] = useState(VAGAS_DATA);
 
   const handleUserLogin = (user) => {
+    setCurrentUser(user);
+    setCurrentPage('home');
+  };
+
+  const handleSignupSuccess = (user) => {
     setCurrentUser(user);
     setCurrentPage('home');
   };
@@ -36,8 +42,10 @@ export default function InTernsApp() {
       company: currentUser?.name || "Minha Empresa",
       postedAt: "Agora mesmo"
     };
+    
     setVacancies([newJob, ...vacancies]);
     setCurrentPage('home');
+    alert("Vaga publicada com sucesso!");
   };
 
   const handleJobClick = (vaga) => {
@@ -51,21 +59,14 @@ export default function InTernsApp() {
       case 'login':
         return <LoginPage onNavigate={setCurrentPage} onLogin={handleUserLogin} />;
       case 'signup':
-        return <SignUpPage onNavigate={setCurrentPage} />;
+        return <SignUpPage onNavigate={setCurrentPage} onSignupSuccess={handleSignupSuccess} />;
       case 'job-details':
         return <JobDetailsPage vaga={selectedJob} onBack={() => setCurrentPage('home')} />;
       case 'create-job':
         return <CreateJobPage onBack={() => setCurrentPage('home')} onSave={handleSaveJob} />;
       case 'home':
       default:
-        return (
-          <HomePage 
-            onNavigate={setCurrentPage} 
-            onJobClick={handleJobClick} 
-            vacancies={vacancies} 
-            currentUser={currentUser} 
-          />
-        );
+        return <HomePage onNavigate={setCurrentPage} onJobClick={handleJobClick} vacancies={vacancies} currentUser={currentUser} />;
     }
   };
 

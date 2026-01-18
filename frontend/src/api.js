@@ -1,4 +1,3 @@
-// frontend/src/api.js
 const API_URL = 'http://localhost:5000/api';
 
 const handleResponse = async (response) => {
@@ -9,7 +8,6 @@ const handleResponse = async (response) => {
 };
 
 export const api = {
-    // Auth endpoints
     login: (email, password) => {
       return fetch(`${API_URL}/auth/login`, {
         method: 'POST',
@@ -18,7 +16,6 @@ export const api = {
       }).then(handleResponse);
     },
 
-    // Company signup
     signupCompany: (userData) => {
       return fetch(`${API_URL}/auth/signup/company`, {
         method: 'POST',
@@ -27,7 +24,6 @@ export const api = {
       }).then(handleResponse);
     },
 
-    // Candidate signup
     signupCandidate: (userData) => {
       return fetch(`${API_URL}/auth/signup/candidate`, {
         method: 'POST',
@@ -36,7 +32,6 @@ export const api = {
       }).then(handleResponse);
     },
 
-    // Job endpoints
     getJobs: (search, company) => {
         const params = new URLSearchParams();
         if (search) params.append('search', search);
@@ -59,6 +54,20 @@ export const api = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(jobData)
+      }).then(handleResponse);
+    },
+
+    updateJob: (id, jobData) => {
+      return fetch(`${API_URL}/jobs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(jobData)
+      }).then(handleResponse);
+    },
+
+    deleteJob: (id) => {
+      return fetch(`${API_URL}/jobs/${id}`, {
+        method: 'DELETE',
       }).then(handleResponse);
     },
 

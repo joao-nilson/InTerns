@@ -11,6 +11,7 @@ import { SignUpPage } from './pages/SignUpPage';
 export default function InTernsApp() {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedJob, setSelectedJob] = useState(null);
+  const [jobToEdit, setJobToEdit] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [vacancies, setVacancies] = useState([]);
 
@@ -71,6 +72,78 @@ export default function InTernsApp() {
     window.scrollTo(0, 0);
   };
 
+  const handleEditClick = (vaga) => {
+      setJobToEdit(vaga);
+      setCurrentPage('create-job');
+  };
+
+  const handleDeleteClick = async (idToDelete) => {
+      if (window.confirm("Tem certeza que deseja excluir esta vaga?")) {
+          try {
+              await api.deleteJob(idToDelete); 
+          } catch (error) {
+              console.log("Modo offline ou erro na API. Deletando localmente.");
+          }
+
+          if (idToDelete) {
+              setVacancies(prev => prev.filter(v => String(v.id) !== String(idToDelete)));
+          }
+      }
+  };
+
+  const handleSaveOrUpdateJob = async (jobData) => {
+    try {
+      const companyName = currentUser?.name || "Minha Empresa";
+      const isEditing = jobData.id !== null && jobData.id !== undefined;
+
+      if (isEditing) {
+        console.log("Atualizando vaga:", jobData.id);
+        
+        try {
+            await api.updateJob(jobData.id, { ...jobData, company: companyName });
+        } catch (e) { 
+            console.warn("Backend offline/erro update"); 
+        }
+        
+        setVacancies(prev => prev.map(v => 
+            String(v.id) === String(jobData.id) 
+            ? { ...v, ...jobData, company: companyName } 
+            : v
+        ));
+
+      } else {
+        console.log("Criando nova vaga");
+        const newJobPayload = { ...jobData, company: companyName };
+        
+        let finalJob;
+        
+        try {
+            const apiResponse = await api.createJob(newJobPayload);
+            if (apiResponse && apiResponse.id) {
+                finalJob = apiResponse;
+            } else {
+                console.warn("API não retornou ID. Gerando ID local.");
+                finalJob = { ...newJobPayload, id: Date.now(), postedAt: "Agora mesmo" };
+            }
+        } catch (e) {
+            finalJob = { ...newJobPayload, id: Date.now(), postedAt: "Agora mesmo" };
+        }
+        setVacancies(prev => [finalJob, ...prev]);
+      }
+      
+      setCurrentPage('home');
+      setJobToEdit(null);
+    } catch (error) {
+      console.error('Erro crítico no salvamento:', error);
+      alert("Erro ao processar a vaga. Verifique o console.");
+    }
+  };
+
+  const handleGoToCreate = () => {
+      setJobToEdit(null);
+      setCurrentPage('create-job');
+  }
+
   const renderContent = () => {
     switch(currentPage) {
       case 'login':
@@ -80,15 +153,18 @@ export default function InTernsApp() {
       case 'job-details':
         return <JobDetailsPage vaga={selectedJob} onBack={() => setCurrentPage('home')} />;
       case 'create-job':
-        return <CreateJobPage onBack={() => setCurrentPage('home')} onSave={handleSaveJob} />;
+        return <CreateJobPage onBack={() => { setCurrentPage('home'); setJobToEdit(null); }} onSave={handleSaveOrUpdateJob} jobToEdit={jobToEdit} />;
       case 'home':
       default:
+        const safeVacancies = vacancies.filter(v => v && (v.id !== null && v.id !== undefined));
         return (
           <HomePage 
             onNavigate={setCurrentPage} 
             onJobClick={handleJobClick} 
-            vacancies={vacancies} 
+            vacancies={safeVacancies} 
             currentUser={currentUser} 
+            onEdit={handleEditClick}
+            onDelete={handleDeleteClick}
           />
         );
     }
@@ -98,7 +174,11 @@ export default function InTernsApp() {
     <div className="min-h-screen bg-[#f7f5f0] font-sans text-gray-800 flex flex-col">
       <Header 
         currentUser={currentUser} 
-        onNavigate={setCurrentPage} 
+        onNavigate={(page) => {
+            if(page === 'create-job') handleGoToCreate();
+            else setCurrentPage(page);
+          }
+        } 
         onLogout={handleLogout} 
         isHome={currentPage === 'home'} 
       />

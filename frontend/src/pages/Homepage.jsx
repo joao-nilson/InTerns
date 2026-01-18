@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { JobCard } from '../components/business/JobCard';
 
-export const HomePage = ({ onNavigate, onJobClick, vacancies, currentUser }) => {
+export const HomePage = ({ onNavigate, onJobClick, vacancies, currentUser, onEdit, onDelete }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const filteredVagas = useMemo(() => {
     let listToFilter = vacancies;
@@ -73,7 +73,14 @@ export const HomePage = ({ onNavigate, onJobClick, vacancies, currentUser }) => 
             {filteredVagas.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredVagas.map((vaga) => (
-                        <JobCard key={vaga.id} vaga={vaga} onClick={onJobClick} />
+                        <JobCard 
+                            key={vaga.id} 
+                            vaga={vaga} 
+                            onClick={onJobClick}
+                            isOwner={currentUser?.type === 'company' && vaga.company === currentUser.name}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                        />
                     ))}
                 </div>
             ) : (

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const jobs = require('./mock_jobs')
+const jobs = require('./data/mock_jobs')
 
 router.get('/', (req, res) => {
   const { search, company } = req.query;

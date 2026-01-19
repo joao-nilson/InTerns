@@ -6,20 +6,43 @@ router.get('/', (req, res) => {
   const { search, company } = req.query;
   let filteredJobs = [...jobs];
 
-  if (company) {
-    filteredJobs = filteredJobs.filter(job => job.company === company);
-  }
+    if (company) {
+      query.company = company;
+    }
 
-  if (search) {
-    const term = search.toLowerCase();
-    filteredJobs = filteredJobs.filter(job =>
-      job.title.toLowerCase().includes(term) ||
-      job.company.toLowerCase().includes(term) ||
-      job.tags.some(tag => tag.name.toLowerCase().includes(term))
-    );
-  }
+    if (regime) {
+      query.regime = regime;
+    }
 
-  res.json(filteredJobs);
+    if (location) {
+      query.location = new RegExp(location, 'i');
+    }
+
+    if (search) {
+      const term = new RegExp(search, 'i');
+      query.$or = [
+        { title: term },
+        { company: term },
+        { description: term },
+        { 'tags.name': term }
+      ];
+    }
+
+    const jobs = await Job.find(query)
+      .sort({ postedAt: -1 })
+      .populate('postedBy', 'name email type');
+
+    // Add virtual field
+    const jobsWithRelativeTime = jobs.map(job => ({
+      ...job.toObject(),
+      postedAt: job.postedAtRelative
+    }));
+
+    res.json(jobsWithRelativeTime);
+  } catch (error) {
+    console.error('Get jobs error:', error);
+    res.status(500).json({ error: 'Erro ao buscar vagas' });
+  }
 });
 
 router.get('/:id', (req, res) => {

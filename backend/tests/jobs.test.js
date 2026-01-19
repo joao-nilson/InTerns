@@ -12,8 +12,10 @@ describe('Job Routes', () => {
         title: "Desenvolvedor Backend Junior",
         company: "Tech Test Ltda",
         location: "Remoto",
-        description: "Vaga para teste",
-        type: "Full-time"
+        regime: "Remoto",           
+        description: "Vaga para teste de integração",
+        requirements: "Conhecimento em Node.js, Express e MongoDB",
+        postedBy: 1      
     };
 
     describe('POST /api/jobs', () => {
@@ -25,6 +27,16 @@ describe('Job Routes', () => {
             expect(res.statusCode).toEqual(201);
             expect(res.body.title).toBe(mockJob.title);
             expect(res.body).toHaveProperty('_id');
+            expect(res.body.regime).toBe(mockJob.regime);
+        });
+
+        it('deve retornar 400 se faltarem campos obrigatórios', async () => {
+            const incompleteJob = { title: "Vaga Incompleta" };
+            const res = await request(app)
+                .post('/api/jobs')
+                .send(incompleteJob);
+
+            expect(res.statusCode).toEqual(400);
         });
     });
 
@@ -40,8 +52,8 @@ describe('Job Routes', () => {
         });
 
         it('deve filtrar vagas por busca', async () => {
-            await request(app).post('/api/jobs').send({ ...mockJob, title: "React Dev" });
-            await request(app).post('/api/jobs').send({ ...mockJob, title: "Java Dev" });
+            await request(app).post('/api/jobs').send({ ...mockJob, title: "React Developer" });
+            await request(app).post('/api/jobs').send({ ...mockJob, title: "Java Expert" });
 
             const res = await request(app).get('/api/jobs?search=React');
             
@@ -52,6 +64,17 @@ describe('Job Routes', () => {
     });
 
     describe('GET /api/jobs/:id', () => {
+        it('deve retornar uma vaga específica pelo ID', async () => {
+            const createRes = await request(app).post('/api/jobs').send(mockJob);
+            const jobId = createRes.body._id;
+
+            const res = await request(app).get(`/api/jobs/${jobId}`);
+            
+            expect(res.statusCode).toEqual(200);
+            expect(res.body._id).toBe(jobId);
+            expect(res.body.title).toBe(mockJob.title);
+        });
+
         it('deve retornar erro 404 para vaga inexistente', async () => {
             const res = await request(app).get('/api/jobs/999999');
             expect(res.statusCode).toEqual(404);

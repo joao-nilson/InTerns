@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const tagSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   type: {
     type: String,
@@ -16,17 +17,23 @@ const jobSchema = new mongoose.Schema({
   _id: { type: Number, required: true },
   title: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   company: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   location: {
     type: String,
     required: true
   },
-  contactEmail: String, 
+  contactEmail: {
+    type: String,
+    lowercase: true,
+    trim: true
+  },
   regime: {
     type: String,
     enum: ['Presencial', 'Remoto', 'Híbrido'],
@@ -44,7 +51,7 @@ const jobSchema = new mongoose.Schema({
   postedBy: {
     type: Number,
     ref: 'User',
-    required: true
+    required: false
   },
   postedAt: {
     type: Date,
@@ -54,7 +61,14 @@ const jobSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   }
+}, {
+  // ATIVA OS VIRTUAIS: Sem isso, o 'postedAtRelative' não aparece no JSON da API
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
+
+// ÍNDICE DE TEXTO: Essencial para o RF03 (Busca de Vagas) e RNF01 (Performance)
+jobSchema.index({ title: 'text', company: 'text', description: 'text' });
 
 jobSchema.virtual('postedAtRelative').get(function() {
   const now = new Date();

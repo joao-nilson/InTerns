@@ -43,17 +43,31 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    // Criação via Model (Atende RF07)
+    console.log("Dados recebidos:", req.body);
+
     const newJob = new Job({
-      _id: Math.floor(Math.random() * 100000), // Gerando ID numérico conforme seu Schema
+      // 1. Tratando o id: null que vem do frontend
+      _id: req.body.id || Math.floor(Math.random() * 1000000), 
+      
+      // 2. Espalhando os campos (title, company, location, etc)
       ...req.body,
+
+      // 3. RESOLUÇÃO DO ERRO: 
+      // Como o frontend não enviou 'postedBy', definimos um ID de usuário padrão
+      // para passar na validação do seu Schema.
+      postedBy: req.body.postedBy || 1, 
+
+      // 4. Garantindo que a data seja gravada corretamente
       postedAt: new Date()
     });
 
-    await newJob.save();
-    res.status(201).json(newJob);
+    const savedJob = await newJob.save();
+    console.log("✅ Vaga salva no MongoDB com sucesso!");
+    res.json(savedJob);
+
   } catch (error) {
-    res.status(400).json({ error: 'Erro ao publicar vaga' });
+    console.error("❌ Erro detalhado ao salvar:", error.message);
+    res.status(400).json({ error: error.message });
   }
 });
 

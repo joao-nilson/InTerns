@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+require('dotenv').config({path: './.env'});
 
 // Ativa a conexão Singleton com o MongoDB
 // O require já executa o construtor que inicia a conexão

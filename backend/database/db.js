@@ -32,15 +32,15 @@ class DataBaseManager {
     }
   }
 
-  // Método para encerrar a conexão de forma segura
+  // Método para encerrar a conexão
   async disconnect() {
     await mongoose.connection.close();
     console.log('🔌 Conexão Singleton encerrada pelo app.');
   }
 }
 
-// Exporta uma única instância da classe (O coração do padrão Singleton no Node.js)
+// Exporta uma única instância da classe
 const instance = new DataBaseManager();
-Object.freeze(instance); // Garante que a instância não seja modificada
+Object.freeze(instance);
 
 module.exports = instance;

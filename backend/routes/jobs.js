@@ -1,49 +1,69 @@
 const express = require('express');
 const router = express.Router();
-const jobs = require('./data/mock_jobs')
+const Job = require('../database/models/Job'); // Importa o Model em vez do mock
 
-router.get('/', (req, res) => {
-  const { search, company } = req.query;
-  let filteredJobs = [...jobs];
+router.get('/', async (req, res) => {
+  try {
+    const { search, company } = req.query;
+    let query = {};
 
-  if (company) {
-    filteredJobs = filteredJobs.filter(job => job.company === company);
+    if (company) {
+      query.company = company;
+    }
+
+    if (search) {
+      const term = new RegExp(search, 'i'); // 'i' para ignorar maiúsculas/minúsculas
+      query.$or = [
+        { title: term },
+        { company: term },
+        { "tags.name": term }
+      ];
+    }
+
+    // Busca no banco de dados (Atende RF03 e RNF01)
+    const filteredJobs = await Job.find(query).sort({ postedAt: -1 });
+    res.json(filteredJobs);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar vagas no banco' });
   }
-
-  if (search) {
-    const term = search.toLowerCase();
-    filteredJobs = filteredJobs.filter(job =>
-      job.title.toLowerCase().includes(term) ||
-      job.company.toLowerCase().includes(term) ||
-      job.tags.some(tag => tag.name.toLowerCase().includes(term))
-    );
-  }
-
-  res.json(filteredJobs);
 });
 
-router.get('/:id', (req, res) => {
-  const job = jobs.find(j => j.id === parseInt(req.params.id));
-  if (!job) {
-    return res.status(404).json({ error: 'Vaga não encontrada' });
+router.get('/:id', async (req, res) => {
+  try {
+    // Busca por _id (Atende RF04)
+    const job = await Job.findOne({ _id: parseInt(req.params.id) });
+    if (!job) {
+      return res.status(404).json({ error: 'Vaga não encontrada' });
+    }
+    res.json(job);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar detalhes da vaga' });
   }
-  res.json(job);
 });
 
-router.post('/', (req, res) => {
-  const newJob = {
-    id: jobs.length + 1,
-    ...req.body,
-    postedAt: "Agora mesmo"
-  };
+router.post('/', async (req, res) => {
+  try {
+    // Criação via Model (Atende RF07)
+    const newJob = new Job({
+      _id: Math.floor(Math.random() * 100000), // Gerando ID numérico conforme seu Schema
+      ...req.body,
+      postedAt: new Date()
+    });
 
-  jobs.unshift(newJob);
-  res.status(201).json(newJob);
+    await newJob.save();
+    res.status(201).json(newJob);
+  } catch (error) {
+    res.status(400).json({ error: 'Erro ao publicar vaga' });
+  }
 });
 
-router.get('/company/:companyName', (req, res) => {
-  const companyJobs = jobs.filter(job => job.company === req.params.companyName);
-  res.json(companyJobs);
+router.get('/company/:companyName', async (req, res) => {
+  try {
+    const companyJobs = await Job.find({ company: req.params.companyName });
+    res.json(companyJobs);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar vagas da empresa' });
+  }
 });
 
 module.exports = router;

@@ -1,11 +1,11 @@
 // backend/routes/auth.js
 const express = require('express');
 const router = express.Router();
-const users = require('./data/mock_users')
+const User = require('../database/models/User');
 
 // Login
 router.post('/login', async (req, res) => {
-  try{
+  try {
     const { email, password } = req.body;
     
     if (!email || !password) {
@@ -28,7 +28,7 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       user: user.toJSON()
     });
-  }catch (error) {
+  } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Erro no servidor' });
   }
@@ -36,17 +36,12 @@ router.post('/login', async (req, res) => {
 
 // Signup - Candidate
 router.post('/signup/candidate', async (req, res) => {
-  try{
-
+  try {
     const { name, email, password, phone, location, bio } = req.body;
   
     // Validation
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
-    }
-  
-    if (users.some(u => u.email === email)) {
-      return res.status(400).json({ error: 'Email já cadastrado' });
     }
   
     if (password.length < 6) {
@@ -59,6 +54,7 @@ router.post('/signup/candidate', async (req, res) => {
     }
   
     const newUser = new User({
+      _id: Math.floor(Math.random() * 1000000),
       name,
       email: email.toLowerCase(),
       password,
@@ -83,8 +79,7 @@ router.post('/signup/candidate', async (req, res) => {
 
 // Signup - Company
 router.post('/signup/company', async (req, res) => {
-  try{
-
+  try {
     const { 
       name, 
       email, 
@@ -103,10 +98,6 @@ router.post('/signup/company', async (req, res) => {
       return res.status(400).json({ error: 'Nome da empresa, email e senha são obrigatórios' });
     }
   
-    if (users.some(u => u.email === email)) {
-      return res.status(400).json({ error: 'Email já cadastrado' });
-    }
-  
     if (password.length < 8) {
       return res.status(400).json({ error: 'Senha deve ter pelo menos 8 caracteres' });
     }
@@ -117,6 +108,7 @@ router.post('/signup/company', async (req, res) => {
     }
   
     const newUser = new User({
+      _id: Math.floor(Math.random() * 1000000),
       name,
       email: email.toLowerCase(),
       password,
@@ -146,9 +138,7 @@ router.post('/signup/company', async (req, res) => {
 
 // Get all users (for testing)
 router.get('/users', async (req, res) => {
-  // const usersWithoutPasswords = users.map(({ password, ...user }) => user);
-  // res.json(usersWithoutPasswords);
-  try{
+  try {
     const users = await User.find({});
     res.json(users);
   } catch (error) {

@@ -1,9 +1,20 @@
 import React from 'react';
-import { Building2, MapPin, Clock, Briefcase, CheckCircle, DollarSign, ArrowLeft } from 'lucide-react';
+import { Building2, MapPin, Clock, Briefcase, CheckCircle, DollarSign, ArrowLeft, Mail } from 'lucide-react';
 import { Tag } from '../components/ui/Tag';
 
 export const JobDetailsPage = ({ vaga, onBack }) => {
+    console.log("Dados da vaga recebidos na Detalhes:", vaga);
     if (!vaga) return null;
+
+    const handleApplyClick = () => {
+        const emailDestino = vaga.contactEmail || "vagas@interns.com.br";
+        const assunto = `InTerns: Candidato à vaga ${vaga.title}`;
+        const corpo = "*Anexe seu currículo aqui*";
+
+        const mailtoLink = `mailto:${emailDestino}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+
+        window.location.href = mailtoLink;
+    };
 
     return (
         <main className="container mx-auto px-4 py-8 max-w-4xl">
@@ -27,6 +38,10 @@ export const JobDetailsPage = ({ vaga, onBack }) => {
                             <div className="flex items-center gap-1.5">
                                 <Building2 size={18} className="text-[#3a8acf]" />
                                 <span className="font-semibold">{vaga.company}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <Mail size={18} className="text-[#3a8acf]" />
+                                <span>{vaga.contactEmail}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <MapPin size={18} className="text-[#3a8acf]" />
@@ -93,7 +108,7 @@ export const JobDetailsPage = ({ vaga, onBack }) => {
                         </div>
                     </div>
                     <div className="p-6 bg-[#f0f4ff] rounded-xl border border-blue-100 text-center">
-                        <button className="w-full bg-[#223e8c] text-white py-3 rounded-lg text-base font-bold hover:bg-[#1a2f6b] transition-all shadow-lg hover:shadow-xl">
+                        <button onClick={handleApplyClick} className="w-full bg-[#223e8c] text-white py-3 rounded-lg text-base font-bold hover:bg-[#1a2f6b] transition-all shadow-lg hover:shadow-xl">
                             Inscrever-se Agora</button>
                         </div>
                     </div>

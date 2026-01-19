@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Briefcase, Building2, MapPin, CheckCircle, DollarSign, Plus, Save, Pencil } from 'lucide-react';
+import { ArrowLeft, Briefcase, Building2, MapPin, CheckCircle, DollarSign, Plus, Save, Pencil, Mail } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 import { Tag } from '../components/ui/Tag';
 
@@ -8,6 +8,7 @@ export const CreateJobPage = ({ onBack, onSave, jobToEdit = null }) => {
         id: null,
         title: '',
         location: '',
+        contactEmail: '',
         regime: 'Híbrido',
         description: '',
         requirements: '',
@@ -24,6 +25,7 @@ export const CreateJobPage = ({ onBack, onSave, jobToEdit = null }) => {
                 id: jobToEdit.id,
                 title: jobToEdit.title || '',
                 location: jobToEdit.location || '',
+                contactEmail: jobToEdit.contactEmail || '',
                 regime: jobToEdit.regime || 'Híbrido',
                 description: jobToEdit.description || '',
                 requirements: jobToEdit.requirements || '',
@@ -77,6 +79,16 @@ export const CreateJobPage = ({ onBack, onSave, jobToEdit = null }) => {
                             placeholder="Ex: Estágio em Desenvolvimento Embarcado"
                             value={formData.title} 
                             onChange={e => setFormData({...formData, title: e.target.value})} 
+                        />
+
+                        <Input 
+                            icon={Mail} 
+                            type="email"
+                            label="E-mail para Recebimento" 
+                            placeholder="rh@empresa.com"
+                            value={formData.contactEmail} 
+                            onChange={e => setFormData({...formData, contactEmail: e.target.value})} 
+                            required
                         />
                         
                         <div className="mb-4">

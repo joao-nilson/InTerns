@@ -151,7 +151,7 @@ export default function InTernsApp() {
       case 'signup':
         return <SignUpPage onNavigate={setCurrentPage} onSignupSuccess={handleSignupSuccess} />;
       case 'job-details':
-        return <JobDetailsPage vaga={selectedJob} onBack={() => setCurrentPage('home')} />;
+        return <JobDetailsPage vaga={selectedJob} currentUser={currentUser} onBack={() => setCurrentPage('home')} />;
       case 'create-job':
         return <CreateJobPage onBack={() => { setCurrentPage('home'); setJobToEdit(null); }} onSave={handleSaveOrUpdateJob} jobToEdit={jobToEdit} />;
       case 'home':

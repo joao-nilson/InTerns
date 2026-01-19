@@ -1,20 +1,22 @@
 import React from 'react';
-import { Building2, MapPin, Clock, Briefcase, CheckCircle, DollarSign, ArrowLeft, Mail } from 'lucide-react';
+import { Building2, MapPin, Clock, Briefcase, CheckCircle, DollarSign, ArrowLeft, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Tag } from '../components/ui/Tag';
 
-export const JobDetailsPage = ({ vaga, onBack }) => {
-    console.log("Dados da vaga recebidos na Detalhes:", vaga);
+export const JobDetailsPage = ({ vaga, onBack, currentUser}) => {
+    //console.log("Dados da vaga recebidos na Detalhes:", vaga);
     if (!vaga) return null;
 
     const handleApplyClick = () => {
         const emailDestino = vaga.contactEmail || "vagas@interns.com.br";
         const assunto = `InTerns: Candidato à vaga ${vaga.title}`;
-        const corpo = "*Anexe seu currículo aqui*";
+        const corpo = `Olá, meu nome é ${currentUser.name} e me interessei pela vaga de estágio "${vaga.title}". \nSegue em anexo meu currículo.\n\n*Anexe seu currículo aqui*`;
 
         const mailtoLink = `mailto:${emailDestino}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
 
         window.location.href = mailtoLink;
     };
+
+    const isLoggedIn = !!currentUser;
 
     return (
         <main className="container mx-auto px-4 py-8 max-w-4xl">
@@ -107,9 +109,31 @@ export const JobDetailsPage = ({ vaga, onBack }) => {
                             </div>
                         </div>
                     </div>
-                    <div className="p-6 bg-[#f0f4ff] rounded-xl border border-blue-100 text-center">
-                        <button onClick={handleApplyClick} className="w-full bg-[#223e8c] text-white py-3 rounded-lg text-base font-bold hover:bg-[#1a2f6b] transition-all shadow-lg hover:shadow-xl">
-                            Inscrever-se Agora</button>
+                    <div className="flex flex-col items-end gap-2">
+                        <button 
+                            onClick={handleApplyClick}
+                            disabled={!isLoggedIn} // Desabilita se nao estiver logado
+                            className={`
+                                px-8 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2
+                                    ${isLoggedIn 
+                                        ? 'bg-[#223e8c] text-white hover:bg-[#1a2f6b] hover:shadow-xl transform hover:-translate-y-1' 
+                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none'
+                                    }
+                                `}
+                            title={!isLoggedIn ? "Faça login para se inscrever" : "Inscrever-se"}
+                        >
+                        {isLoggedIn ? (
+                            <>Inscrever-se Agora <ArrowRight size={20} /></>
+                        ) : (
+                            <>Faça login para se inscrever <Lock size={18} /></>
+                            )}
+                        </button>
+                    
+                        {!isLoggedIn && (
+                        <span className="text-xs text-red-500 font-medium bg-red-50 px-2 py-1 rounded">
+                                Necessário estar logado
+                            </span>
+                        )}
                         </div>
                     </div>
                 </div>

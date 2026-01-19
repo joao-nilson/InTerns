@@ -1,18 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const connectDB = require('../database/db');
+
+const dbManager = require('../database/db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-connectDB();
+//connectDB();
 
 app.use(cors()); 
 app.use(express.json());
 
-let users = [];
-let jobs = [];
+//let users = [];
+//let jobs = [];
 
 const authRoutes = require('./routes/auth');
 const jobRoutes = require('./routes/jobs');
@@ -26,6 +27,11 @@ app.get('/', (req, res) => {
     database: 'MongoDB with Mongoose',
     status: 'connected'
   });
+});
+
+process.on('SIGINT', async () => {
+  await dbManager.disconnect();
+  process.exit(0);
 });
 
 app.listen(PORT, () => {

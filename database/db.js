@@ -1,34 +1,46 @@
-// database/db.js - Updated for Mongoose 8+
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(
-      process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/jobboard'
-    );
-    
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-    
-    // Connection event handlers
-    mongoose.connection.on('error', (err) => {
-      console.error('MongoDB connection error:', err);
-    });
-    
-    mongoose.connection.on('disconnected', () => {
-      console.log('MongoDB disconnected');
-    });
-    
-    process.on('SIGINT', async () => {
-      await mongoose.connection.close();
-      console.log('MongoDB connection closed through app termination');
-      process.exit(0);
-    });
-    
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error.message);
-    process.exit(1);
+class DataBaseManager {
+  constructor() {
+    // Verifica se já existe uma instância criada
+    if (!DataBaseManager.instance) {
+      this.uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/jobboard';
+      this._connect();
+      DataBaseManager.instance = this; // Salva a instância
+    }
+    return DataBaseManager.instance;
   }
-};
 
-module.exports = connectDB;
+  async _connect() {
+    try {
+      const conn = await mongoose.connect(this.uri);
+      console.log(`✅ InTerns: Singleton MongoDB Conectado: ${conn.connection.host}`);
+      
+      // Handlers de evento para manter a integridade da conexão
+      mongoose.connection.on('error', (err) => {
+        console.error('❌ Erro na conexão do MongoDB:', err);
+      });
+
+      mongoose.connection.on('disconnected', () => {
+        console.log('⚠️ MongoDB desconectado');
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao conectar ao MongoDB:', error.message);
+      process.exit(1);
+    }
+  }
+
+  // Método para encerrar a conexão de forma segura
+  async disconnect() {
+    await mongoose.connection.close();
+    console.log('🔌 Conexão Singleton encerrada pelo app.');
+  }
+}
+
+// Exporta uma única instância da classe (O coração do padrão Singleton no Node.js)
+const instance = new DataBaseManager();
+Object.freeze(instance); // Garante que a instância não seja modificada
+
+module.exports = instance;

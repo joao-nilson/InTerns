@@ -30,8 +30,20 @@ export const LoginPage = ({ onNavigate, onLogin }) => {
 
         setLoading(true);
         
+        let result;
+
         try {
-            const result = await api.login(email, password);
+            result = await api.login(email, password);
+            if (result.user && result.user.type !== userType) {
+                const tipoCorreto = result.user.type === 'company' ? 'Empresa' : 'Candidato';
+                const tipoSelecionado = userType === 'company' ? 'Empresa' : 'Candidato';
+                
+                setGeneralError(`Esta é uma conta  ${tipoCorreto}, mas você está tentando entrar como ${tipoSelecionado}. Por favor, troque a opção acima.`);
+                
+                setLoading(false);
+                return;
+            }
+
             if (result.user) {
                 onLogin(result.user);
             }
@@ -42,9 +54,10 @@ export const LoginPage = ({ onNavigate, onLogin }) => {
             } else {
                 setGeneralError('Erro ao conectar ao servidor. Tente mais tarde.');
             }
-            // onLogin({ type: userType, name: 'Modo Offline', email: email });
         } finally {
-            setLoading(false);
+            if (!result?.user || result?.user.type !== userType) {
+                setLoading(false);
+            }
         }
     };
 
@@ -70,6 +83,7 @@ export const LoginPage = ({ onNavigate, onLogin }) => {
                             icon={Mail} 
                             type="email" 
                             label="E-mail" 
+                            placeholder={userType == 'company' ? "rh@empresa.com" : "joaosilva@email.com"}
                             value={email} 
                             onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
                             error={emailError}
@@ -78,6 +92,7 @@ export const LoginPage = ({ onNavigate, onLogin }) => {
                             icon={Lock} 
                             type="password" 
                             label="Senha" 
+                            placeholder="Senha"
                             value={password} 
                             onChange={(e) => { setPassword(e.target.value); setGeneralError(''); }}
                         />
